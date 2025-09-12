@@ -3,11 +3,13 @@ import sqlglot
 from utils.parser import QQL
 import click
 from db_connect import PSQL, QQLEnv
+from parser import AQE_Parser
 
 class QQLShell(cmd.Cmd):
     intro = "Type exit to quit.\n"
     prompt = "qql> "
     buffer = ""
+    db = None
 
     def __init__(self, username, password, dbname, host,port):
         super().__init__()
@@ -19,7 +21,7 @@ class QQLShell(cmd.Cmd):
             password=password,
             user=username,
             port=port
-            )
+        )
 
     def default(self, line):
         self.buffer += " " + line.strip()
@@ -31,7 +33,10 @@ class QQLShell(cmd.Cmd):
 
     def execute_sql(self, statement):
         try:
-            exp = sqlglot.parse_one(statement, read=QQL)
+            # exp = sqlglot.parse_one(statement, read=QQL)
+            parser = AQE_Parser()
+            exp = parser.parse(statement)
+            print(repr(exp))
         except Exception as e:
             print(f"An error occurred: {e}")
         

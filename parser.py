@@ -328,27 +328,27 @@ class AQE_Parser:
         page_id_sql = f"'page_id_{label_index}:' || ({tbl}.ctid::text::point)[0]::int as page_id_{label_index}"
         return sqlglot.parse_one(page_id_sql, read='postgres')
 
-# for testing
-if __name__ == "__main__":
-    demo_queries = [
-        "SELECT APPROX SUM(amount) FROM orders o JOIN customers c ON o.customer_id=c.id WHERE c.region='APAC' ERROR 0.03 PROB 0.98",
-        "SELECT APPROX SUM(amount) FROM orders WHERE created_at > now() - interval '7' days",
-        "SELECT SUM(amount) FROM orders WHERE created_at > now() - interval '7' days",
-        # "SELECT APPROX COUNT(DISTINCT user_id) FROM events",  # should warn about distinct
-    ]
+# # for testing
+# if __name__ == "__main__":
+#     demo_queries = [
+#         "SELECT APPROX SUM(amount) FROM orders o JOIN customers c ON o.customer_id=c.id WHERE c.region='APAC' ERROR 0.03 PROB 0.98",
+#         "SELECT APPROX SUM(amount) FROM orders WHERE created_at > now() - interval '7' days",
+#         "SELECT SUM(amount) FROM orders WHERE created_at > now() - interval '7' days",
+#         # "SELECT APPROX COUNT(DISTINCT user_id) FROM events",  # should warn about distinct
+#     ]
 
-    parser = AQE_Parser()
-    for q in demo_queries:
-        print("\n---\nOriginal:", q)
-        r = parser.parse(q)
-        print("Cleaned SQL:", r.cleaned_sql)
-        print("Approx enabled:", r.approx, "Plan mode:", r.plan_mode)
-        print("Error / Confidence:", r.error, "/", r.confidence)
-        print("Tables:", [(t.name, t.alias) for t in r.tables])
-        print("Aggregates:", [(a.func, a.column) for a in r.aggregates])
-        print("Group by:", r.group_by)
-        print("Where:", r.where)
-        print("Rewritable:", r.is_rewritable)
-        print("AST:", repr(r.ast))
-        if r.notes:
-            print("Notes:", r.notes)
+#     parser = AQE_Parser()
+#     for q in demo_queries:
+#         print("\n---\nOriginal:", q)
+#         r = parser.parse(q)
+#         print("Cleaned SQL:", r.cleaned_sql)
+#         print("Approx enabled:", r.approx, "Plan mode:", r.plan_mode)
+#         print("Error / Confidence:", r.error, "/", r.confidence)
+#         print("Tables:", [(t.name, t.alias) for t in r.tables])
+#         print("Aggregates:", [(a.func, a.column) for a in r.aggregates])
+#         print("Group by:", r.group_by)
+#         print("Where:", r.where)
+#         print("Rewritable:", r.is_rewritable)
+#         print("AST:", repr(r.ast))
+#         if r.notes:
+#             print("Notes:", r.notes)
