@@ -31,12 +31,9 @@ class QQLShell(cmd.Cmd):
             self.execute_sql(statement)
             self.buffer = ""
 
-    def execute_sql(self, statement):
+    def execute_sql(self, query):
         try:
-            # exp = sqlglot.parse_one(statement, read=QQL)
-            parser = AQE_Parser()
-            exp = parser.parse(statement)
-            print(repr(exp))
+            exp = sqlglot.parse_one(statement, read=QQL)
         except Exception as e:
             print(f"An error occurred: {e}")
         
