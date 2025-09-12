@@ -4,21 +4,38 @@ from sqlglot.dialects.dialect import Dialect
 from sqlglot.parser import Parser as SqlglotParser
 from sqlglot.generator import Generator
 from sqlglot.tokens import Tokenizer, TokenType
+TokenType.APPROX = "APPROX"
 
 class Error(exp.Expression):
-    arg_types = {"this": True, "percent": False}
+    arg_types = {"this": True}
+
+class Confidence(exp.Expression):
+    arg_types = {"this": True}
+
+class Approx(exp.Expression):
+    arg_types = {"this": True}
 
 class QQL(Dialect):
     class Tokenizer(Tokenizer):
         KEYWORDS = {
             **Tokenizer.KEYWORDS,
-            "ERROR": TokenType.VAR,
-            "PERCENT": TokenType.VAR,
+            "ERROR": TokenType.FLOAT,
+            "CONFIDENCE": TokenType.FLOAT,
+            "APPROX": TokenType.APPROX,
+        }
+
+        SINGLE_TOKENS = {
+            **Tokenizer.SINGLE_TOKENS,
+            "APPROX": TokenType.APPROX,
         }
 
     class Parser(SqlglotParser):
-        def _parse_select(self, *args, **kwargs):
-            select = super()._parse_select(*args, **kwargs)
+        def _parse_select_query(self, *args, **kwargs):
+            approx = self._match_text_seq("APPROX")
+            select = super()._parse_select_query(*args, **kwargs)
+
+            if approx:
+                select.args["approx"] = True
             
             if self._match_text_seq("ERROR"):
                 self._retreat(self._index - 1)
@@ -26,56 +43,55 @@ class QQL(Dialect):
                 if error_clause:
                     select.args["error"] = error_clause
             
+            elif self._match_text_seq("CONFIDENCE"):
+                self._retreat(self._index - 1)
+                confidence_clause = self._parse_confidence_clause()
+                if confidence_clause:
+                    select.args["confidence"] = confidence_clause
+                
             return select
 
         def _parse_error_clause(self):
             if self._match_text_seq("ERROR"):
                 value = self._parse_primary()
                 if not value:
+                    if not isinstance(value, (int, float)):
+                        self.error("Unidentified Literal after ERROR")
                     self.error("Expected value after ERROR")
                 
-                percent = self._match_text_seq("PERCENT")
-                return self.expression(Error, this=value, percent=bool(percent))
+                return self.expression(Error, this=value)
+            return None
+        
+        def _parse_confidence_clause(self):
+            if self._match_text_seq("CONFIDENCE"):
+                value = self._parse_primary()
+                if not value:
+                    if not isinstance(value, (int, float)):
+                        self.error("Unidentified Literal after CONFIDENCE")
+                    self.error("Expected value after CONFIDENCE")
+                
+                return self.expression(Confidence, this=value)
             return None
 
     class Generator(Generator):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.TYPE_MAPPING[Error] = self.error_sql
+            self.TYPE_MAPPING[Confidence] = self.confidence_sql
         
         def error_sql(self, expression: Error) -> str:
-            result = f"ERROR {self.sql(expression, 'this')}"
-            if expression.args.get('percent'):
-                result += " PERCENT"
-            return result
+            return f"ERROR {self.sql(expression, 'this')}"
+        
+        def confidence_sql(self, expression: Confidence) -> str:
+            return f"CONFIDENCE {self.sql(expression, 'this')}"
 
         def select_sql(self, expression: exp.Select) -> str:
             sql = super().select_sql(expression)
             error_clause = expression.args.get('error')
             if error_clause:
                 return f"{sql} {self.sql(error_clause)}"
+            
+            confidence_clause = expression.args.get('confidence')
+            if confidence_clause:
+                return f"{sql} {self.sql(confidence_clause)}"
             return sql
-
-if __name__ == '__main__':
-    try:
-        sql_query = "SELECT column_a FROM my_table WHERE x > 1 ERROR 5 PERCENT"
-        print(f"Parsing: {sql_query}")
-        parsed_ast = sqlglot.parse_one(sql_query, read=QQL)
-        
-        error_node = parsed_ast.args.get("error")
-        if error_node:
-            value = error_node.this
-            has_percent = error_node.args.get("percent", False)
-            
-            print(f"Extracted Error Value: {value}")
-            print(f"Has PERCENT keyword: {has_percent}")
-        else:
-            print("No ERROR clause found")
-            
-        print("\nGenerated SQL:")
-        print(parsed_ast.sql(dialect=QQL, pretty=True))
-        
-    except Exception as e:
-        print(f"Error: {e}")
-        import traceback
-        traceback.print_exc()
