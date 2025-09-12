@@ -1,10 +1,12 @@
-import sqlglot
 from sqlglot import exp
 from sqlglot.dialects.dialect import Dialect
 from sqlglot.parser import Parser as SqlglotParser
 from sqlglot.generator import Generator
 from sqlglot.tokens import Tokenizer, TokenType
+
 TokenType.APPROX = "APPROX"
+TokenType.ERROR = "ERROR"
+TokenType.CONFIDENCE = "CONFIDENCE"
 
 class Error(exp.Expression):
     arg_types = {"this": True}
@@ -19,13 +21,15 @@ class QQL(Dialect):
     class Tokenizer(Tokenizer):
         KEYWORDS = {
             **Tokenizer.KEYWORDS,
-            "ERROR": TokenType.FLOAT,
-            "CONFIDENCE": TokenType.FLOAT,
+            "ERROR": TokenType.ERROR,
+            "CONFIDENCE": TokenType.CONFIDENCE,
             "APPROX": TokenType.APPROX,
         }
 
         SINGLE_TOKENS = {
             **Tokenizer.SINGLE_TOKENS,
+            "ERROR": TokenType.ERROR,
+            "CONFIDENCE": TokenType.CONFIDENCE,
             "APPROX": TokenType.APPROX,
         }
 
@@ -37,41 +41,39 @@ class QQL(Dialect):
             if approx:
                 select.args["approx"] = True
             
-            if self._match_text_seq("ERROR"):
-                self._retreat(self._index - 1)
-                error_clause = self._parse_error_clause()
-                if error_clause:
-                    select.args["error"] = error_clause
+            if self._match(TokenType.ERROR):
+                value = self._parse_primary()
+                if value:
+                    select.args["error"] = self.expression(Error, this=value)
             
-            elif self._match_text_seq("CONFIDENCE"):
-                self._retreat(self._index - 1)
-                confidence_clause = self._parse_confidence_clause()
-                if confidence_clause:
-                    select.args["confidence"] = confidence_clause
+            if self._match(TokenType.CONFIDENCE):
+                value = self._parse_primary()
+                if value:
+                    select.args["confidence"] = self.expression(Confidence, this=value)
                 
             return select
 
-        def _parse_error_clause(self):
-            if self._match_text_seq("ERROR"):
-                value = self._parse_primary()
-                if not value:
-                    if not isinstance(value, (int, float)):
-                        self.error("Unidentified Literal after ERROR")
-                    self.error("Expected value after ERROR")
+        # def _parse_error_clause(self):
+        #     if self._match_text_seq("ERROR"):
+        #         value = self._parse_primary()
+        #         if not value:
+        #             if not isinstance(value, (int, float)):
+        #                 self.error("Unidentified Literal after ERROR")
+        #             self.error("Expected value after ERROR")
                 
-                return self.expression(Error, this=value)
-            return None
+        #         return self.expression(Error, this=value)
+        #     return None
         
-        def _parse_confidence_clause(self):
-            if self._match_text_seq("CONFIDENCE"):
-                value = self._parse_primary()
-                if not value:
-                    if not isinstance(value, (int, float)):
-                        self.error("Unidentified Literal after CONFIDENCE")
-                    self.error("Expected value after CONFIDENCE")
+        # def _parse_confidence_clause(self):
+        #     if self._match_text_seq("CONFIDENCE"):
+        #         value = self._parse_primary()
+        #         if not value:
+        #             if not isinstance(value, (int, float)):
+        #                 self.error("Unidentified Literal after CONFIDENCE")
+        #             self.error("Expected value after CONFIDENCE")
                 
-                return self.expression(Confidence, this=value)
-            return None
+        #         return self.expression(Confidence, this=value)
+        #     return None
 
     class Generator(Generator):
         def __init__(self, *args, **kwargs):
