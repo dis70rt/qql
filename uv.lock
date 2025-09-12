@@ -6,3 +6,18 @@ requires-python = ">=3.12"
 name = "qql"
 version = "0.1.0"
 source = { virtual = "." }
+dependencies = [
+    { name = "sqlglot" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "sqlglot", specifier = ">=27.14.0" }]
+
+[[package]]
+name = "sqlglot"
+version = "27.14.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3e/1a/ce57767e3b791c670aa395c92c42c5b5fe11f12c2504a656f8463862ba98/sqlglot-27.14.0.tar.gz", hash = "sha256:456c82ec95dd05927cfe37cb57d4540acbfec6f0743f8c8f246147d56549ba88", size = 5462946, upload-time = "2025-09-11T21:05:59.916Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c6/be/fbd6905dc14e0cd118a21cd48ff39a60407f7059801cd1afc1913d9e86da/sqlglot-27.14.0-py3-none-any.whl", hash = "sha256:a5adc68abc85ccd249258ae0f3aff3c1869bb5b086e360375e16518858ce8a7a", size = 515883, upload-time = "2025-09-11T21:05:57.349Z" },
+]

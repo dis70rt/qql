@@ -1,5 +1,6 @@
 import cmd
-
+import sqlglot
+from utils.parser import QQL
 class QQLShell(cmd.Cmd):
     intro = "Type exit to quit.\n"
     prompt = "qql> "
@@ -14,12 +15,17 @@ class QQLShell(cmd.Cmd):
             self.buffer = ""
 
     def execute_sql(self, statement):
-        # DO HERE
-        print(f"Executing SQL: {statement}")
+        try:
+            exp = sqlglot.parse_one(statement, read=QQL)
+            print(repr(exp))
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
         
     def do_exit(self, arg):
         return True
     do_quit = do_exit
+
 
 if __name__ == "__main__":
     QQLShell().cmdloop()
