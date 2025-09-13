@@ -53,8 +53,24 @@ def rewrite_query_with_plan(parse_result, plan: SamplePlan) -> Tuple[str, List[s
             alias_map[key] = key
             notes.append(f"No plan entry for {key}; using full table")
 
-    # Build SELECT list using sampled alias and weight column
     select_items = []
+    group_items = []
+    if parse_result.group_by:
+        if len(parse_result.tables) == 1:
+            tbl = parse_result.tables[0]
+            tbl_key = tbl.alias or tbl.name
+            sampled_alias = alias_map.get(tbl_key, tbl_key)
+            for g in parse_result.group_by:
+                if '.' in g or '(' in g:
+                    group_items.append(g)
+                    select_items.append(g)
+                else:
+                    group_items.append(f"{sampled_alias}.{g}")
+                    select_items.append(f"{sampled_alias}.{g}")
+        else:
+            for g in parse_result.group_by:
+                group_items.append(g)
+                select_items.append(g)
     for agg in parse_result.aggregates:
         # heuristics to pick table alias for the aggregate: if only one table, use it; else use first matching column.table
         if len(parse_result.tables) == 1:
@@ -87,8 +103,8 @@ def rewrite_query_with_plan(parse_result, plan: SamplePlan) -> Tuple[str, List[s
 
     select_clause = ", ".join(select_items)
     from_clause = ", ".join(from_parts)
-    
-    sql = f"SELECT {select_clause} FROM {from_clause};"
+    group_clause = f" GROUP BY {', '.join(group_items)}" if group_items else ""
+    sql = f"SELECT {select_clause} FROM {from_clause}{group_clause};"
     return sql, notes
 
 
@@ -104,8 +120,11 @@ def execute_plan_and_confidence(parse_result: ParseResult,
     if not rows:
         raise RuntimeError("final sampled SQL returned no rows")
 
+    if parse_result.group_by:
+        cols = res.get("columns", [])
+        estimate = rows
+        return ({"estimate": estimate, "columns": cols, "ci_lower": None, "ci_upper": None, "estimated_variance": None, "p_used": p_confidence}, notes)
     first_row = rows[0]
-
     if isinstance(first_row, (list, tuple)):
         values = list(first_row)
         estimate = values[0] if len(values) == 1 else values

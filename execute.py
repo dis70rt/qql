@@ -36,24 +36,32 @@ def _extract_header_from_sql(sql_query: str) -> str:
 
 def print_dict(data_dict: dict):
     console = Console()
-    table = Table(show_header=True, header_style="bold magenta")
-    
-    sql_query = data_dict.get('final_sql', '')
-    header = _extract_header_from_sql(sql_query)
-
-    table.add_column(header, style="dim", overflow="fold")
-
     estimate_details = data_dict.get('estimate', {})
     value = estimate_details.get('estimate')
-
+    columns = estimate_details.get('columns') or data_dict.get('columns')
+    if isinstance(value, list) and value and isinstance(value[0], (list, tuple)):
+        table = Table(show_header=True, header_style="bold magenta")
+        if columns:
+            for h in columns:
+                table.add_column(str(h), style="dim", overflow="fold")
+        else:
+            ncols = len(value[0])
+            for i in range(ncols):
+                table.add_column(f"col_{i}", style="dim", overflow="fold")
+        for row in value:
+            table.add_row(*[str(x) for x in row])
+        console.print(table)
+        return
+    table = Table(show_header=True, header_style="bold magenta")
+    sql_query = data_dict.get('final_sql', '')
+    header = _extract_header_from_sql(sql_query)
+    table.add_column(header, style="dim", overflow="fold")
     row_to_add = "N/A"
-
     if value is not None:
         if isinstance(value, Decimal):
             row_to_add = f"{value:.2f}"
         else:
             row_to_add = str(value)
-
     table.add_row(row_to_add)
     console.print(table)
 

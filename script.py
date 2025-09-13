@@ -8,7 +8,7 @@ db = PSQL(dbname='postgres' ,
           host='127.0.0.1', 
           port='5432')
 
-sql = """SELECT APPROX AVG(price) FROM pizza_orders ERROR 0.05 PROB 0.95;"""
+sql = """SELECT APPROX pizza_type, COUNT(price) FROM pizza_orders GROUP BY pizza_type ERROR 0.05 PROB 0.95;"""
 res = execute_query(sql, db)
 print(res)
 db.close()

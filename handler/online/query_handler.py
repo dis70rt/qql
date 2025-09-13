@@ -82,7 +82,8 @@ def _make_db_execute(db: PSQL, parse_result) -> Callable[[str], Dict[str, Any]]:
         else:
             cur.execute(sql)
             rows = cur.fetchall()
-            return {"rows": rows}
+            cols = [d[0] for d in cur.description] if cur.description else []
+            return {"rows": rows, "columns": cols}
     return db_execute
 
 def handle_online(parse_result, db: PSQL) -> Dict[str, Any]:
