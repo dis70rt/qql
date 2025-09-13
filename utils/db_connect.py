@@ -14,9 +14,14 @@ class PSQL:
         self.cur = self.conn.cursor()
 
     def execute(self, query, params=None):
-        self.cur.execute(query, params or ())
-        self.conn.commit()
-        return self.cur
+        try:
+            self.conn.rollback()
+            self.cur.execute(query, params or ())
+            self.conn.commit()
+            return self.cur
+        except:
+            self.conn.rollback()
+            raise
 
     def close(self):
         self.cur.close()

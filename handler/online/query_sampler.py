@@ -1,4 +1,3 @@
-# sampler.py
 from dataclasses import dataclass, field
 from typing import Optional, Dict
 import re

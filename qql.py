@@ -1,13 +1,15 @@
 import cmd
-import sqlglot
 from utils.parser import QQL
 import click
-from db_connect import PSQL, QQLEnv
-from parser import AQE_Parser
+from utils.db_connect import PSQL, QQLEnv
+from execute import execute_query
+import timeit
+from rich.console import Console
+console = Console()
 
 class QQLShell(cmd.Cmd):
     intro = "Type exit to quit.\n"
-    prompt = "qql> "
+    prompt = "qql~# "
     buffer = ""
     db = None
 
@@ -33,7 +35,9 @@ class QQLShell(cmd.Cmd):
 
     def execute_sql(self, query):
         try:
-            exp = sqlglot.parse_one(statement, read=QQL)
+            exec_time = timeit.timeit(lambda: execute_query(query, self.db), number=1)
+            console.print(f"[bold green]Execution Time:[/bold green] {exec_time*1000:.3f} ms")
+
         except Exception as e:
             print(f"An error occurred: {e}")
         
@@ -72,7 +76,6 @@ def login(username, password, dbname, host, port):
 
     shell = QQLShell(username, password, dbname, host, port)
     shell.cmdloop()
-
 
 if __name__ == "__main__":
     login()

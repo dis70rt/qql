@@ -1,0 +1,1 @@
+SELECT APPROX SUM(price) FROM pizza_orders ERROR 0.05 PROB 0.98;
