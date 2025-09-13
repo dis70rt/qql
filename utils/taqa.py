@@ -90,7 +90,6 @@ def taqa_procedure1(parse_result,
 
         func_lower = agg.func.lower()
         if func_lower == "avg":
-        
             a_blocks = s.get("block_sums")
             b_blocks = s.get("block_counts")
 
@@ -105,14 +104,16 @@ def taqa_procedure1(parse_result,
                 plan.entries[alias] = entry
                 continue
 
+            a_blocks = [float(x) for x in a_blocks]
+            b_blocks = [float(x) for x in b_blocks]
             n_p = len(a_blocks)
             if n_p == 0:
                 notes.append(f"Pilot returned zero blocks for {alias}; falling back to full.")
                 entry = SamplePlanEntry(table=tbl, method="full", sample_frac=None)
                 plan.entries[alias] = entry
                 continue
-            mean_a = sum(a_blocks) / n_p
-            mean_b = sum(b_blocks) / n_p
+            mean_a = float(sum(a_blocks) / n_p)
+            mean_b = float(sum(b_blocks) / n_p)
             # unbiased sample variances
             if n_p > 1:
                 var_a = sum((x - mean_a) ** 2 for x in a_blocks) / (n_p - 1)
@@ -121,8 +122,8 @@ def taqa_procedure1(parse_result,
             else:
                 var_a = var_b = cov_ab = 0.0
 
-            muA_hat_p = float(B) * mean_a   
-            muB_hat_p = float(B) * mean_b   
+            muA_hat_p = float(B) * float(mean_a)
+            muB_hat_p = float(B) * float(mean_b)
 
             var_muA_hat_p = (float(B) ** 2) * (1.0 - (n_p / float(B))) * (float(var_a) / float(max(1, n_p)))
             var_muB_hat_p = (float(B) ** 2) * (1.0 - (n_p / float(B))) * (float(var_b) / float(max(1, n_p)))
