@@ -8,4 +8,6 @@ dependencies = [
     "click>=8.2.1",
     "psycopg2-binary>=2.9.10",
     "sqlglot>=27.14.0",
+    "rich",
+    "plotext",
 ]

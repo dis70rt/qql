@@ -25,6 +25,8 @@ class AggregateInfo:
 class TableInfo:
     name: str
     alias: Optional[str]
+    num_blocks: Optional[int]
+    num_rows: Optional[int]
 
 
 @dataclass
@@ -121,7 +123,7 @@ class AQE_Parser:
                 alias = None
                 if t.alias:
                     alias = t.alias
-                tables.append(TableInfo(name=name, alias=alias))
+                tables.append(TableInfo(name=name, alias=alias, num_blocks=None, num_rows=None))
             except Exception:
                 continue
         return tables
@@ -311,6 +313,52 @@ class AQE_Parser:
             notes=notes
         )
         return parse_result
+    
+    def enrich_with_table_stats(self, parse_result, db):
+        if db is None:
+            parse_result.notes.append("enrich_with_table_stats: no DB connection provided; skipping table stats enrichment.")
+            return
+
+        try:
+            cur = db.cur
+        except Exception:
+            parse_result.notes.append("enrich_with_table_stats: provided db object has no cursor (.cur). Skipping.")
+            return
+
+        for t in parse_result.tables:
+            if getattr(t, "num_blocks", None) is not None or getattr(t, "num_rows", None) is not None:
+                continue
+
+            table_name = t.name
+            try:
+                cur.execute("SELECT relpages, COALESCE(reltuples,0) FROM pg_class WHERE oid = %s::regclass;", (table_name,))
+                row = cur.fetchone()
+                if row and row[0] is not None:
+                    relpages = int(row[0])
+                    reltuples = float(row[1]) if row[1] is not None else 0.0
+                    setattr(t, "num_blocks", relpages)
+                    setattr(t, "num_rows", int(round(reltuples)))
+                    parse_result.notes.append(f"enrich_with_table_stats: table={table_name} relpages={relpages} reltuples={reltuples}")
+                    continue
+            except Exception as e:
+                parse_result.notes.append(f"enrich_with_table_stats: regclass lookup failed for {table_name}: {e}")
+
+            try:
+                public_name = f"public.{table_name.split('.')[-1]}"
+                cur.execute("SELECT relpages, COALESCE(reltuples,0) FROM pg_class WHERE oid = %s::regclass;", (public_name,))
+                row = cur.fetchone()
+                if row and row[0] is not None:
+                    relpages = int(row[0])
+                    reltuples = float(row[1]) if row[1] is not None else 0.0
+                    setattr(t, "num_blocks", relpages)
+                    setattr(t, "num_rows", int(round(reltuples)))
+                    parse_result.notes.append(f"enrich_with_table_stats: table={public_name} relpages={relpages} reltuples={reltuples}")
+                    continue
+            except Exception as e:
+                parse_result.notes.append(f"enrich_with_table_stats: fallback regclass lookup failed for {table_name}: {e}")
+
+            parse_result.notes.append(f"enrich_with_table_stats: could not determine relpages/reltuples for table `{table_name}`; TAQA may fallback to full scan.")
+
 
 
     def page_id_expr(self, label_index: int = 0) -> exp.Expression:
@@ -328,27 +376,27 @@ class AQE_Parser:
         page_id_sql = f"'page_id_{label_index}:' || ({tbl}.ctid::text::point)[0]::int as page_id_{label_index}"
         return sqlglot.parse_one(page_id_sql, read='postgres')
 
-# # for testing
-# if __name__ == "__main__":
-#     demo_queries = [
-#         "SELECT APPROX SUM(amount) FROM orders o JOIN customers c ON o.customer_id=c.id WHERE c.region='APAC' ERROR 0.03 PROB 0.98",
-#         "SELECT APPROX SUM(amount) FROM orders WHERE created_at > now() - interval '7' days",
-#         "SELECT SUM(amount) FROM orders WHERE created_at > now() - interval '7' days",
-#         # "SELECT APPROX COUNT(DISTINCT user_id) FROM events",  # should warn about distinct
-#     ]
+# for testing
+if __name__ == "__main__":
+    demo_queries = [
+        "SELECT APPROX SUM(amount) FROM orders o JOIN customers c ON o.customer_id=c.id WHERE c.region='APAC' ERROR 0.03 PROB 0.98",
+        # "SELECT APPROX SUM(amount) FROM orders WHERE created_at > now() - interval '7' days",
+        # "SELECT SUM(amount) FROM orders WHERE created_at > now() - interval '7' days",
+        # "SELECT APPROX COUNT(DISTINCT user_id) FROM events",  # should warn about distinct
+    ]
 
-#     parser = AQE_Parser()
-#     for q in demo_queries:
-#         print("\n---\nOriginal:", q)
-#         r = parser.parse(q)
-#         print("Cleaned SQL:", r.cleaned_sql)
-#         print("Approx enabled:", r.approx, "Plan mode:", r.plan_mode)
-#         print("Error / Confidence:", r.error, "/", r.confidence)
-#         print("Tables:", [(t.name, t.alias) for t in r.tables])
-#         print("Aggregates:", [(a.func, a.column) for a in r.aggregates])
-#         print("Group by:", r.group_by)
-#         print("Where:", r.where)
-#         print("Rewritable:", r.is_rewritable)
-#         print("AST:", repr(r.ast))
-#         if r.notes:
-#             print("Notes:", r.notes)
+    parser = AQE_Parser()
+    for q in demo_queries:
+        print("\n---\nOriginal:", q)
+        r = parser.parse(q)
+        print("Cleaned SQL:", r.cleaned_sql)
+        print("Approx enabled:", r.approx, "Plan mode:", r.plan_mode)
+        print("Error / Confidence:", r.error, "/", r.confidence)
+        print("Tables:", [(t.name, t.alias) for t in r.tables])
+        print("Aggregates:", [(a.func, a.column) for a in r.aggregates])
+        print("Group by:", r.group_by)
+        print("Where:", r.where)
+        print("Rewritable:", r.is_rewritable)
+        print("AST:", repr(r.ast))
+        if r.notes:
+            print("Notes:", r.notes)

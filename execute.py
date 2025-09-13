@@ -1,7 +1,7 @@
 from typing import Dict, Any
 from parser import AQE_Parser
 from db_connect import PSQL
-# import online_query_handler
+import online_query_handler
 # import offline_query_handler
 # import synopses
 from rich.console import Console
@@ -54,34 +54,45 @@ def print_table(rows):
 
 def execute_query(raw_sql: str, db: PSQL, user_id: str = None) -> Dict[str, Any]:
     parse_result = parser.parse(raw_sql)
+    if parse_result.where and len(parse_result.tables) == 1:
+      t = parse_result.tables[0]
+      if not getattr(t, "where", None):
+          t.where = parse_result.where
 
-    rows = db.execute(parse_result.cleaned_sql)
-    # print_table(rows)
+    # rows = db.execute(parse_result.cleaned_sql)
+    # # print_table(rows)
 
-    plot_query(rows)
+    # plot_query(rows)
     
-    return {'mode': 'exact', 'result': rows, 'meta': {'note': 'Exact execution (no APPROX)'}}
+    # return {'mode': 'exact', 'result': rows, 'meta': {'note': 'Exact execution (no APPROX)'}}
 
 
-    return metadata
+    # return metadata
 
     if parse_result.plan_mode == 'exact':
-        rows = qql_shell.db.execute(parse_result.cleaned_sql)
+        rows = db.execute(parse_result.cleaned_sql)
+        print_table(rows)
         return {'mode': 'exact', 'result': rows, 'meta': {'note': 'Exact execution (no APPROX)'}}
 
-    if parse_result.plan_mode == 'offline':
-        approx_result = offline_query_handler.handle_offline(parse_result)
-        if approx_result.get('success'):
-            approx_result['mode'] = 'offline'
-            return approx_result
+    # if parse_result.plan_mode == 'offline':
+    #     approx_result = offline_query_handler.handle_offline(parse_result)
+    #     if approx_result.get('success'):
+    #         approx_result['mode'] = 'offline'
+    #         return approx_result
 
-    if parse_result.plan_mode in ('online', 'offline'):
-        approx_result = online_query_handler.handle_online(parse_result)
+    if parse_result.plan_mode == 'online':
+        try:
+            parser.enrich_with_table_stats(parse_result, db)
+        except Exception as e:
+            # record and continue (TAQA will fallback if it still can't find metadata)
+            parse_result.notes.append(f"enrich_with_table_stats error: {e}")
+        approx_result = online_query_handler.handle_online(parse_result, db)
         if approx_result.get('success'):
             approx_result['mode'] = 'online'
             return approx_result
-        rows = qql_shell.db.execute(parse_result.cleaned_sql)
+        rows = db.execute(parse_result.cleaned_sql)
+        print_table(rows)
         return {'plan_mode': 'exact', 'result': rows, 'meta': {'note': 'Fallback exact (approx failed)'}}
 
-    rows = qql_shell.db.execute(parse_result.cleaned_sql)
+    rows = db.execute(parse_result.cleaned_sql)
     return {'plan_mode': 'exact', 'result': rows, 'meta': {'note': 'Default exact execution'}}
