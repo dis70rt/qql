@@ -10,4 +10,5 @@ dependencies = [
     "sqlglot>=27.14.0",
     "rich",
     "plotext",
+    "matplotlib>=3.10.6",
 ]
