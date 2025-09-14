@@ -9,6 +9,7 @@ from execute import execute_query
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import math
 
 
 def _to_float(x):
@@ -80,9 +81,10 @@ def plot_benchmarks(result: Dict[str, Any], out_path: str):
     exact = result["exact"]
     approx = result["approx"]
 
-    xs = [p["eps"] for p in approx]
-    times = [p["time"] for p in approx]
-    errors = [p["abs_error"] for p in approx]
+    approx_sorted = sorted(approx, key=lambda p: p["eps"]) if approx else []
+    xs = [p["eps"] for p in approx_sorted]
+    times = [p["time"] for p in approx_sorted]
+    errors = [p["abs_error"] for p in approx_sorted]
 
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
 
@@ -97,6 +99,14 @@ def plot_benchmarks(result: Dict[str, Any], out_path: str):
     axes[1].set_ylabel("Absolute Error vs Exact")
     axes[1].set_title("Accuracy: Approx vs Exact")
 
+    if xs:
+        start = math.floor(min(xs) / 0.05) * 0.05
+        end = math.ceil(max(xs) / 0.05) * 0.05
+        steps = int(round((end - start) / 0.05))
+        ticks = [round(start + i * 0.05, 2) for i in range(steps + 1)]
+        axes[0].set_xticks(ticks)
+        axes[1].set_xticks(ticks)
+
     fig.tight_layout()
     fig.savefig(out_path)
 
@@ -104,14 +114,14 @@ def plot_benchmarks(result: Dict[str, Any], out_path: str):
 if __name__ == "__main__":
     env = QQLEnv()
     db = PSQL(
-        dbname=env.dbname or 'postgres',
-        user=env.username or 'ethernode',
-        password=env.password or 'sd1312004',
-        host=env.host or '127.0.0.1',
-        port=str(env.port or 5432),
+        dbname=env.dbname,
+        user=env.username,
+        password=env.password,
+        host=env.host,
+        port=str(env.port),
     )
 
-    errors = [0.20, 0.15, 0.10, 0.07, 0.05, 0.03]
+    errors = [round(i * 0.05, 2) for i in range(1, 13)]
 
     import os
     os.makedirs("generated", exist_ok=True)
@@ -119,17 +129,17 @@ if __name__ == "__main__":
     suites = [
         (
             "avg",
-            "SELECT APPROX AVG(price) FROM pizza_orders ERROR 0.05 PROB 0.95;",
+            "SELECT APPROX AVG(price) FROM pizza_orders ERROR 0.05 PROB 0.98;",
             "SELECT AVG(price) FROM pizza_orders;",
         ),
         (
             "sum",
-            "SELECT APPROX SUM(price) FROM pizza_orders ERROR 0.05 PROB 0.95;",
+            "SELECT APPROX SUM(price) FROM pizza_orders ERROR 0.05 PROB 0.98;",
             "SELECT SUM(price) FROM pizza_orders;",
         ),
         (
             "count",
-            "SELECT APPROX COUNT(price) FROM pizza_orders ERROR 0.05 PROB 0.95;",
+            "SELECT APPROX COUNT(price) FROM pizza_orders ERROR 0.05 PROB 0.98;",
             "SELECT COUNT(price) FROM pizza_orders;",
         ),
     ]
