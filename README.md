@@ -5,6 +5,7 @@ with support for query parsing, approximate query extensions, and pretty-printed
 directly in the terminal.
 
 ## Table of Contents
+
 - [QQL - QuickQueryLanguage](#qql---quickquerylanguage)
   - [Table of Contents](#table-of-contents)
     - [Features](#features)
@@ -13,9 +14,8 @@ directly in the terminal.
     - [Usage](#usage)
     - [Documentations](#documentations)
   - [Benchmarks](#benchmarks)
-          - [Speed and accuracy trade-offs at different error thresholds](#speed-and-accuracy-trade-offs-at-different-error-thresholds)
+    - [Speed and accuracy trade-offs at different error thresholds](#speed-and-accuracy-trade-offs-at-different-error-thresholds)
     - [Examples](#examples)
-
 
 ### Features
 
@@ -28,7 +28,7 @@ directly in the terminal.
 
 ### Requirements
 
-- Python **3.12+******
+- Python **3.12+**
 - [uv](https://github.com/astral-sh/uv) package manager (recommended)
 - PostgreSQL server (local or remote)
 
@@ -61,14 +61,16 @@ uv run qql.py --host=localhost --port=5432
 
 ### Documentations
 
-| Keyword    | Where used                      | Meaning |
-| ---------- | ------------------------------- | ------- |
-| `APPROX` | Immediately before an aggregate |Request an offline approximate execution path (fast, uses synopses if available).|
-|`ERROR <value>`|With aggregate / query|Target maximum relative error (e.g. 0.05 for 5%). Triggers online planning if used with CONFIDENCE|
-|`CONFIDENCE <value>`|With aggregate / query|Target probability that the relative error is ≤ ERROR (e.g. 0.95 = 95%).| 
+| Keyword                | Where used                      | Meaning                                                                                            |
+| ---------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `APPROX`             | Immediately before an aggregate | Request an offline approximate execution path (fast, uses synopses if available).                  |
+| `ERROR <value>`      | With aggregate / query          | Target maximum relative error (e.g. 0.05 for 5%). Triggers online planning if used with CONFIDENCE |
+| `CONFIDENCE <value>` | With aggregate / query          | Target probability that the relative error is ≤ ERROR (e.g. 0.95 = 95%).                          |
 
 > ⚠️ **Important:** queries that use `DISTINCT` (including `COUNT(DISTINCT ...)`) will **always run exactly** in QQL by default. QQL will *not* apply approximate execution to `DISTINCT` results
+
 ---
+
 ## Benchmarks
 
 ###### Speed and accuracy trade-offs at different error thresholds
@@ -89,5 +91,15 @@ uv run qql.py --host=localhost --port=5432
 Run a simple query:
 
 ```sql
-qql> SELECT pizza_type, COUNT(*) FROM pizza_orders GROUP BY pizza_type;
+qql> SELECT pizza_type, COUNT(price) FROM pizza_orders GROUP BY pizza_type;
 ```
+
+---
+
+### Limitations
+
+- **`DISTINCT`**: Queries with `DISTINCT` (including `COUNT(DISTINCT ...)` ) are not approximated and will fall back to exact execution.
+- **`LIMIT` and `OFFSET` Behavior**: When `APPROX` is used with `LIMIT` or `OFFSET`, these clauses are ignored during the planning and execution of the approximate query. The approximation is performed on the entire table, which may produce unexpected results.
+- **Single-Table Operations**: The current approximate execution logic is primarily designed and tested for single-table queries. Joins are not officially supported and can lead to incorrect results.
+- **Performance Overhead**: For small tables or fast queries, the overhead of the AQP planning (pilot query + final query) can be higher than just running the exact query, especially if the database is remote (high network latency).
+- **No Offline Mode**: The offline, synopsis-based approximation feature has been removed. All approximate queries use the online, sampling-based approach.
