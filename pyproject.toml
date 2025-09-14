@@ -11,4 +11,6 @@ dependencies = [
     "rich",
     "plotext",
     "matplotlib>=3.10.6",
+    "streamlit>=1.49.1",
+    "plotly>=6.3.0",
 ]
