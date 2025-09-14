@@ -14,8 +14,9 @@ directly in the terminal.
     - [Usage](#usage)
     - [Documentations](#documentations)
   - [Benchmarks](#benchmarks)
-    - [Speed and accuracy trade-offs at different error thresholds](#speed-and-accuracy-trade-offs-at-different-error-thresholds)
+          - [Speed and accuracy trade-offs at different error thresholds](#speed-and-accuracy-trade-offs-at-different-error-thresholds)
     - [Examples](#examples)
+    - [Limitations](#limitations)
 
 ### Features
 
@@ -67,7 +68,7 @@ uv run qql.py --host=localhost --port=5432
 | `ERROR <value>`      | With aggregate / query          | Target maximum relative error (e.g. 0.05 for 5%). Triggers online planning if used with CONFIDENCE |
 | `CONFIDENCE <value>` | With aggregate / query          | Target probability that the relative error is ≤ ERROR (e.g. 0.95 = 95%).                          |
 
-> ⚠️ **Important:** queries that use `DISTINCT` (including `COUNT(DISTINCT ...)`) will **always run exactly** in QQL by default. QQL will *not* apply approximate execution to `DISTINCT` results
+> ⚠️ **Important:** queries that use `DISTINCT` (including `COUNT(DISTINCT ...)`) will **always run exact** in QQL by default. QQL will *not* apply approximate execution to `DISTINCT` results
 
 ---
 
@@ -103,3 +104,4 @@ qql> SELECT pizza_type, COUNT(price) FROM pizza_orders GROUP BY pizza_type;
 - **Single-Table Operations**: The current approximate execution logic is primarily designed and tested for single-table queries. Joins are not officially supported and can lead to incorrect results.
 - **Performance Overhead**: For small tables or fast queries, the overhead of the AQP planning (pilot query + final query) can be higher than just running the exact query, especially if the database is remote (high network latency).
 - **No Offline Mode**: The offline, synopsis-based approximation feature has been removed. All approximate queries use the online, sampling-based approach.
+- **SUM/COUNT insignificance**: When the sample size/fraction is small relative to the total data, **COUNT** and **SUM** estimates are not reliable as absolute values — treat them only as *relative* sizing indicators unless you increase the pilot/sample size or use the paper’s χ²/Student-t bounds.

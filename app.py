@@ -127,11 +127,6 @@ if run_btn:
         m2.metric("Exact Time", f"{exact_time:.4f} s")
         m3.metric("Speedup (Exact/Approx)", f"{speedup:.2f}x")
 
-        fig = go.Figure()
-        fig.add_bar(x=["Approx", "Exact"], y=[approx_time, exact_time], marker_color=["#1f77b4", "#ff7f0e"])
-        fig.update_layout(title="Runtime Comparison", yaxis_title="Time (s)", template="plotly_white", bargap=0.35)
-        st.plotly_chart(fig, use_container_width=True)
-
         st.markdown("---")
         st.subheader("Results")
         c1, c2 = st.columns(2)
@@ -195,5 +190,10 @@ if run_btn:
             e1, e2 = st.columns(2)
             e1.metric("Absolute Error", f"{abs_err:.6f}")
             e2.metric("Relative Error", f"{rel_err:.4%}")
+        
+        fig = go.Figure()
+        fig.add_bar(x=["Approx", "Exact"], y=[approx_time, exact_time], marker_color=["#1f77b4", "#ff7f0e"])
+        fig.update_layout(title="Runtime Comparison", yaxis_title="Time (s)", template="plotly_white", bargap=0.35)
+        st.plotly_chart(fig, use_container_width=True)
 
 st.caption("Note: LIMIT/OFFSET may be ignored for approximate planning; DISTINCT and window functions fall back to exact execution.")

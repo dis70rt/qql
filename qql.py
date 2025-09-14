@@ -1,5 +1,4 @@
 import cmd
-from utils.parser import QQL
 import click
 from utils.db_connect import PSQL, QQLEnv
 from execute import execute_query
